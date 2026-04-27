@@ -6,3 +6,4 @@
 ```url
 https://webcode-full-editor
 ```
+フィードバックなどは受付しておりません。
