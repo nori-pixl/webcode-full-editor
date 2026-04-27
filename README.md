@@ -7,5 +7,3 @@
 https://webcode-full-editor
 ```
 フィードバックなどは受付しておりません。
-
-![] (img/1000002485.jpg)
