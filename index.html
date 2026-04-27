@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PHP IDE - Render Edition</title>
+    <!-- コード色付けライブラリ -->
+    <link href="https://cloudflare.com" rel="stylesheet" />
+    <style>
+        :root { --bg: #1e1e1e; --side: #252526; --accent: #007acc; --text: #cccccc; }
+        body { margin: 0; display: flex; flex-direction: column; height: 100vh; background: var(--bg); color: var(--text); font-family: sans-serif; overflow: hidden; }
+        header { background: var(--accent); padding: 5px 15px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; height: 30px; }
+        .container { display: flex; flex: 1; overflow: hidden; }
+        .explorer { width: 180px; background: var(--side); border-right: 1px solid #333; display: flex; flex-direction: column; }
+        .file-list { flex: 1; list-style: none; padding: 0; margin: 0; overflow-y: auto; }
+        .file-item { padding: 10px; cursor: pointer; border-bottom: 1px solid #2d2d2d; font-size: 13px; display: flex; justify-content: space-between; }
+        .file-item.active { background: #37373d; border-left: 3px solid var(--accent); }
+        .editor-main { flex: 1; display: flex; flex-direction: column; }
+        #editor-wrapper { flex: 2; position: relative; border-bottom: 2px solid #444; }
+        textarea, #highlighting { position: absolute; width: 100%; height: 100%; padding: 15px; font-family: 'Courier New', monospace; font-size: 15px; box-sizing: border-box; border: none; outline: none; margin: 0; }
+        textarea { background: transparent; color: transparent; caret-color: white; z-index: 2; resize: none; }
+        #highlighting { z-index: 1; pointer-events: none; white-space: pre; }
+        .output-area { flex: 1; background: #000; color: #0f0; padding: 10px; font-family: monospace; overflow-y: auto; font-size: 14px; }
+        .toolbar { background: #2d2d2d; padding: 10px; display: flex; gap: 10px; }
+        button { border: none; color: white; padding: 8px 15px; border-radius: 4px; cursor: pointer; background: #444; }
+        .run-btn { background: #28a745; }
+    </style>
+</head>
+<body>
+
+<header>
+    <span>File: <strong id="cur-name">index.php</strong></span>
+    <!-- 見た目上の固定IP表示 -->
+    <span>HOST: 192.162.0.100 : 10000</span>
+</header>
+
+<div class="container">
+    <div class="explorer">
+        <div style="padding:10px; font-size:11px; background:#333;">EXPLORER <button onclick="addFile()">+</button></div>
+        <ul class="file-list" id="file-list"></ul>
+    </div>
+    <div class="editor-main">
+        <div id="editor-wrapper">
+            <textarea id="editing" spellcheck="false" oninput="handleInput()" onkeydown="handleKey(event)"></textarea>
+            <pre id="highlighting" aria-hidden="true"><code id="hl-content" class="language-php"></code></pre>
+        </div>
+        <div class="output-area" id="output">> RUN PHP ボタンで実行</div>
+        <div class="toolbar">
+            <button class="run-btn" onclick="runPHP()">▶ RUN PHP</button>
+            <button onclick="saveToLocal()">SAVE</button>
+        </div>
+    </div>
+</div>
+
+<script src="https://cloudflare.com"></script>
+<script src="https://cloudflare.com"></script>
+<script>
+    // 以前作成した JavaScript プログラム（ファイル操作、実行、保存、ハイライト処理）をここに記述
+    let files = JSON.parse(localStorage.getItem('v-files')) || {
+        'index.php': '<?php\necho "Hello from Render!";\n?>'
+    };
+    let currentFile = 'index.php';
+    const editor = document.getElementById('editing');
+    const hlContent = document.getElementById('hl-content');
+    const outputArea = document.getElementById('output');
+
+    function init() { renderList(); openFile(currentFile); }
+    function renderList() {
+        const list = document.getElementById('file-list');
+        list.innerHTML = '';
+        Object.keys(files).forEach(name => {
+            const li = document.createElement('li');
+            li.className = `file-item ${name === currentFile ? 'active' : ''}`;
+            li.innerHTML = `<span onclick="openFile('${name}')">${name}</span>`;
+            list.appendChild(li);
+        });
+    }
+    function openFile(name) {
+        currentFile = name;
+        editor.value = files[name];
+        document.getElementById('cur-name').innerText = name;
+        renderList();
+        handleInput();
+    }
+    function handleInput() {
+        hlContent.innerText = editor.value;
+        Prism.highlightElement(hlContent);
+    }
+    function saveToLocal() {
+        files[currentFile] = editor.value;
+        localStorage.setItem('v-files', JSON.stringify(files));
+        alert("Saved to Browser Storage!");
+    }
+    async function runPHP() {
+        outputArea.innerText = "> Running...";
+        const response = await fetch('https://paiza.io', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ source_code: editor.value, language: "php", api_key: "guest" })
+        });
+        const data = await response.json();
+        checkStatus(data.id);
+    }
+    async function checkStatus(id) {
+        const res = await fetch(`https://paiza.io{id}&api_key=guest`);
+        const data = await res.json();
+        if (data.status === "completed") {
+            outputArea.innerText = data.stdout || data.stderr || "No Output";
+        } else {
+            setTimeout(() => checkStatus(id), 1000);
+        }
+    }
+    function handleKey(e) {
+        if (e.key === "Tab") {
+            e.preventDefault();
+            const start = editor.selectionStart;
+            editor.value = editor.value.substring(0, start) + "    " + editor.value.substring(editor.selectionEnd);
+            editor.selectionStart = editor.selectionEnd = start + 4;
+            handleInput();
+        }
+    }
+    window.onload = init;
+</script>
+</body>
+</html>
